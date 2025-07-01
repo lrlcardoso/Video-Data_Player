@@ -1,3 +1,6 @@
+# - If using an external venv. that runs for the entire project, run:
+#   & 'C:\\Users\\s4659771\\Documents\\MyTurn_Project\\.venv\\Scripts\\Activate.ps1'
+
 import sys
 import av
 import os

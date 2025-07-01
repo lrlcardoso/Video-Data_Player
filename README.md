@@ -26,7 +26,7 @@ A PyQt5-based desktop application for synchronized visualization of video frames
 
 Install dependencies via pip:
 ```bash
-pip install pyqt5 pyqtgraph opencv-python-headless numpy pandas av
+python -m pip install -r requirements.txt
 ```
 
 ---
