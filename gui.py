@@ -355,6 +355,31 @@ class VideoIMUPlayer(QWidget):
         self.signal_columns = list(self.imu_data.columns[1:])
         self.signals = {col: pd.to_numeric(self.imu_data[col], errors='coerce').to_numpy()
                         for col in self.signal_columns}
+        
+        # === Rescale RH_Use_Signal to match RH_Dist_to_Ori_filt range ===
+        if "RH_Dist_to_Ori_filt" in self.signals and "RH_Use_Signal" in self.signals:
+            dist_rh = self.signals["RH_Dist_to_Ori_filt"]
+            use_rh = self.signals["RH_Use_Signal"]
+            valid_rh = np.isfinite(dist_rh)
+
+            if np.any(valid_rh):
+                rh_min = np.nanmin(dist_rh)
+                rh_max = np.nanmax(dist_rh)
+                rh_scale = rh_max - rh_min
+                self.signals["RH_Use_Signal"] = use_rh * rh_scale + rh_min
+                print(rh_scale,rh_min)
+
+        # === Rescale LH_Use_Signal to match LH_Dist_to_Ori_filt range ===
+        if "LH_Dist_to_Ori_filt" in self.signals and "LH_Use_Signal" in self.signals:
+            dist_lh = self.signals["LH_Dist_to_Ori_filt"]
+            use_lh = self.signals["LH_Use_Signal"]
+            valid_lh = np.isfinite(dist_lh)
+
+            if np.any(valid_lh):
+                lh_min = np.nanmin(dist_lh)
+                lh_max = np.nanmax(dist_lh)
+                lh_scale = lh_max - lh_min
+                self.signals["LH_Use_Signal"] = use_lh * lh_scale + lh_min
 
         for curve in self.signal_curves.values():
             self.plot_widget.removeItem(curve)
