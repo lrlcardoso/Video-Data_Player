@@ -193,7 +193,20 @@ class VideoIMUPlayer(QWidget):
 
         camera = self.camera_selector.currentText()
         segment = self.segment_selector.currentText()
-        camera_base_path = self.camera_paths.get(camera)
+
+        if camera == "Combined":
+            # Default to Camera1
+            if "Camera1" not in self.camera_paths:
+                print("❌ 'Camera1' not found in session. Cannot load Combined video.")
+                return
+            camera_base_path = self.camera_paths["Camera1"]
+            print("📹 'Combined' selected — loading Camera1 video only.")
+        else:
+            camera_base_path = self.camera_paths.get(camera)
+
+        if not camera_base_path:
+            print("❌ Camera path not found.")
+            return
 
         if not camera_base_path:
             print("❌ Camera path not found.")
@@ -321,8 +334,6 @@ class VideoIMUPlayer(QWidget):
         print("📁 Final selection path ready:", segment_path)
 
 
-
-
     def load_imu_data(self):
         patient = self.patient_selector.currentText()
         session = self.session_selector.currentText()
@@ -340,47 +351,85 @@ class VideoIMUPlayer(QWidget):
             print("❌ Session folder not found in IMU path.")
             return
 
-        imu_path = os.path.join(
-            self.imu_base_path, patient, session_full, segment, "ViewerAssets", f"{camera}.csv"
-        )
+        imu_dir = os.path.join(self.imu_base_path, patient, session_full, segment, "ViewerAssets")
+        use_signal_path = os.path.join(self.imu_base_path, patient, session_full, segment, "UseSignal.csv")
 
-        if not os.path.isfile(imu_path):
-            print("❌ IMU file not found:", imu_path)
-            return
+        imu_dfs = []
 
-        print("📦 Loading IMU data from:", imu_path)
-        self.imu_data = pd.read_csv(imu_path)
+        if camera == "Combined":
+            # Load each available camera CSV in ViewerAssets
+            if not os.path.isdir(imu_dir):
+                print("❌ ViewerAssets folder not found:", imu_dir)
+                return
+
+            for file in sorted(os.listdir(imu_dir)):
+                if file.endswith(".csv") and file != "Combined.csv":
+                    path = os.path.join(imu_dir, file)
+                    print(f"📦 Loading IMU data from: {path}")
+                    try:
+                        df = pd.read_csv(path)
+                        df.columns = [f"{file[:-4]}_{col}" if col != df.columns[0] else col for col in df.columns]
+                        imu_dfs.append(df)
+                    except Exception as e:
+                        print(f"⚠️ Could not load {file}: {e}")
+
+            # Load UseSignal.csv
+            if os.path.isfile(use_signal_path):
+                print(f"📦 Loading UseSignal data from: {use_signal_path}")
+                try:
+                    use_df = pd.read_csv(use_signal_path)
+                    use_df.columns = [f"UseSignal_{col}" if col != use_df.columns[0] else col for col in use_df.columns]
+                    imu_dfs.append(use_df)
+                except Exception as e:
+                    print(f"⚠️ Could not load UseSignal.csv: {e}")
+            else:
+                print("❌ UseSignal.csv not found.")
+
+            # Merge all IMU DataFrames on the first column (usually time or Unix Time)
+            if imu_dfs:
+                merged = imu_dfs[0]
+                for df in imu_dfs[1:]:
+                    merged = pd.merge(merged, df, on=merged.columns[0], how='outer')
+                self.imu_data = merged.sort_values(by=merged.columns[0])
+            else:
+                print("❌ No IMU data loaded.")
+                return
+        else:
+            # Single-camera logic (as before)
+            imu_path = os.path.join(imu_dir, f"{camera}.csv")
+            if not os.path.isfile(imu_path):
+                print("❌ IMU file not found:", imu_path)
+                return
+            print("📦 Loading IMU data from:", imu_path)
+            self.imu_data = pd.read_csv(imu_path)
+
         self.time = np.arange(len(self.imu_data)) / self.fps
-
         self.signal_columns = list(self.imu_data.columns[1:])
         self.signals = {col: pd.to_numeric(self.imu_data[col], errors='coerce').to_numpy()
                         for col in self.signal_columns}
-        
-        # === Rescale RH_Use_Signal to match RH_Dist_to_Ori_filt range ===
+
+        # Optional rescaling logic (unchanged)
         if "RH_Dist_to_Ori_filt" in self.signals and "RH_Use_Signal" in self.signals:
             dist_rh = self.signals["RH_Dist_to_Ori_filt"]
             use_rh = self.signals["RH_Use_Signal"]
             valid_rh = np.isfinite(dist_rh)
-
             if np.any(valid_rh):
                 rh_min = np.nanmin(dist_rh)
                 rh_max = np.nanmax(dist_rh)
                 rh_scale = rh_max - rh_min
                 self.signals["RH_Use_Signal"] = use_rh * rh_scale + rh_min
-                print(rh_scale,rh_min)
 
-        # === Rescale LH_Use_Signal to match LH_Dist_to_Ori_filt range ===
         if "LH_Dist_to_Ori_filt" in self.signals and "LH_Use_Signal" in self.signals:
             dist_lh = self.signals["LH_Dist_to_Ori_filt"]
             use_lh = self.signals["LH_Use_Signal"]
             valid_lh = np.isfinite(dist_lh)
-
             if np.any(valid_lh):
                 lh_min = np.nanmin(dist_lh)
                 lh_max = np.nanmax(dist_lh)
                 lh_scale = lh_max - lh_min
                 self.signals["LH_Use_Signal"] = use_lh * lh_scale + lh_min
 
+        # Plot setup
         for curve in self.signal_curves.values():
             self.plot_widget.removeItem(curve)
         self.signal_curves.clear()
@@ -412,6 +461,7 @@ class VideoIMUPlayer(QWidget):
         self.zoom_slider.setMaximum(20)
         self.zoom_slider.setValue(1)
         self.update_zoom(1)
+
 
     def update_plot_from_checkboxes(self):
         for col, checkbox in self.signal_checkboxes.items():
@@ -461,7 +511,8 @@ class VideoIMUPlayer(QWidget):
                         if os.path.isdir(cam_path):
                             self.camera_paths[cam] = cam_path
                             self.camera_selector.addItem(cam)
-
+                    if self.camera_paths:
+                        self.camera_selector.addItem("Combined")
 
 
     def update_segments(self):
@@ -479,9 +530,20 @@ class VideoIMUPlayer(QWidget):
                     if os.path.isdir(os.path.join(segments_root, f)) and "static" not in f.lower()
                 ])
                 self.segment_selector.addItems(segments)
-
-
-
+        
+        if camera == "Combined":
+            segment_sets = []
+            for cam_path in self.camera_paths.values():
+                segments_root = os.path.join(cam_path, "Segments")
+                if os.path.isdir(segments_root):
+                    segs = set([
+                        f for f in os.listdir(segments_root)
+                        if os.path.isdir(os.path.join(segments_root, f)) and "static" not in f.lower()
+                    ])
+                    segment_sets.append(segs)
+            if segment_sets:
+                common_segments = sorted(set.intersection(*segment_sets))
+                self.segment_selector.addItems(common_segments)
 
 if __name__ == "__main__":
     import cv2
