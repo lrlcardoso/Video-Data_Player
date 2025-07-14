@@ -21,7 +21,7 @@ class TimeAxisItem(pg.AxisItem):
         return [f"{int(v//60)}:{int(v%60):02d}" for v in values]
 
 
-class VideoIMUPlayer(QWidget):
+class VideoDataPlayer(QWidget):
     def __init__(self):
         self.base_path = r"C:\\Users\\s4659771\\Documents\\MyTurn_Project\\Data\\Processed"
         self.imu_base_path = r"C:\\Users\\s4659771\\Documents\\MyTurn_Project\\Data\\ReadyToAnalyse"
@@ -188,7 +188,7 @@ class VideoIMUPlayer(QWidget):
             self.camera_selector.currentIndex() <= 0 or
             self.segment_selector.currentIndex() <= 0
         ):
-            print("⚠️ Please select all dropdowns before loading.")
+            print("Please select all dropdowns before loading.")
             return
 
         camera = self.camera_selector.currentText()
@@ -197,24 +197,24 @@ class VideoIMUPlayer(QWidget):
         if camera == "Combined":
             # Default to Camera1
             if "Camera1" not in self.camera_paths:
-                print("❌ 'Camera1' not found in session. Cannot load Combined video.")
+                print("'Camera1' not found in session. Cannot load Combined video.")
                 return
             camera_base_path = self.camera_paths["Camera1"]
-            print("📹 'Combined' selected — loading Camera1 video only.")
+            print("'Combined' selected — loading Camera1 video only.")
         else:
             camera_base_path = self.camera_paths.get(camera)
 
         if not camera_base_path:
-            print("❌ Camera path not found.")
+            print("Camera path not found.")
             return
 
         if not camera_base_path:
-            print("❌ Camera path not found.")
+            print("Camera path not found.")
             return
 
         segment_path = os.path.join(camera_base_path, "Segments", segment)
         if not os.path.isdir(segment_path):
-            print("❌ Segment folder not found.")
+            print("Segment folder not found.")
             return
 
         # Look for video file in the selected segment folder
@@ -223,10 +223,10 @@ class VideoIMUPlayer(QWidget):
                 file_path = os.path.join(segment_path, fname)
                 break
         else:
-            print("❌ No video file found in segment folder.")
+            print("No video file found in segment folder.")
             return
 
-        print("🎥 Loading video from:", file_path)
+        print("Loading video from:", file_path)
 
         self.container = av.open(file_path)
         self.stream = self.container.streams.video[0]
@@ -249,7 +249,7 @@ class VideoIMUPlayer(QWidget):
 
         self.progress_bar.setVisible(False)
 
-        print(f"✅ Loaded {len(self.frames)} frames")
+        print(f"Loaded {len(self.frames)} frames")
         self.slider.setRange(0, len(self.frames) - 1)
         self.slider.setEnabled(True)
         self.current_frame_idx = 0
@@ -331,7 +331,7 @@ class VideoIMUPlayer(QWidget):
             return
 
         segment_path = os.path.join(camera_base_path, "Segments", segment)
-        print("📁 Final selection path ready:", segment_path)
+        print("Final selection path ready:", segment_path)
 
 
     def load_imu_data(self):
@@ -348,7 +348,7 @@ class VideoIMUPlayer(QWidget):
                 session_full = folder
                 break
         if not session_full:
-            print("❌ Session folder not found in IMU path.")
+            print("Session folder not found in IMU path.")
             return
 
         imu_dir = os.path.join(self.imu_base_path, patient, session_full, segment, "ViewerAssets")
@@ -359,31 +359,31 @@ class VideoIMUPlayer(QWidget):
         if camera == "Combined":
             # Load each available camera CSV in ViewerAssets
             if not os.path.isdir(imu_dir):
-                print("❌ ViewerAssets folder not found:", imu_dir)
+                print("ViewerAssets folder not found:", imu_dir)
                 return
 
             for file in sorted(os.listdir(imu_dir)):
                 if file.endswith(".csv") and file != "Combined.csv":
                     path = os.path.join(imu_dir, file)
-                    print(f"📦 Loading IMU data from: {path}")
+                    print(f"Loading IMU data from: {path}")
                     try:
                         df = pd.read_csv(path)
                         df.columns = [f"{file[:-4]}_{col}" if col != df.columns[0] else col for col in df.columns]
                         imu_dfs.append(df)
                     except Exception as e:
-                        print(f"⚠️ Could not load {file}: {e}")
+                        print(f"Could not load {file}: {e}")
 
             # Load UseSignal.csv
             if os.path.isfile(use_signal_path):
-                print(f"📦 Loading UseSignal data from: {use_signal_path}")
+                print(f"Loading UseSignal data from: {use_signal_path}")
                 try:
                     use_df = pd.read_csv(use_signal_path)
                     use_df.columns = [f"UseSignal_{col}" if col != use_df.columns[0] else col for col in use_df.columns]
                     imu_dfs.append(use_df)
                 except Exception as e:
-                    print(f"⚠️ Could not load UseSignal.csv: {e}")
+                    print(f"Could not load UseSignal.csv: {e}")
             else:
-                print("❌ UseSignal.csv not found.")
+                print("UseSignal.csv not found.")
 
             # Merge all IMU DataFrames on the first column (usually time or Unix Time)
             if imu_dfs:
@@ -392,42 +392,100 @@ class VideoIMUPlayer(QWidget):
                     merged = pd.merge(merged, df, on=merged.columns[0], how='outer')
                 self.imu_data = merged.sort_values(by=merged.columns[0])
             else:
-                print("❌ No IMU data loaded.")
+                print("No IMU data loaded.")
                 return
         else:
             # Single-camera logic (as before)
             imu_path = os.path.join(imu_dir, f"{camera}.csv")
             if not os.path.isfile(imu_path):
-                print("❌ IMU file not found:", imu_path)
+                print("IMU file not found:", imu_path)
                 return
-            print("📦 Loading IMU data from:", imu_path)
+            print("Loading IMU data from:", imu_path)
             self.imu_data = pd.read_csv(imu_path)
 
         self.time = np.arange(len(self.imu_data)) / self.fps
         self.signal_columns = list(self.imu_data.columns[1:])
         self.signals = {col: pd.to_numeric(self.imu_data[col], errors='coerce').to_numpy()
                         for col in self.signal_columns}
+        
+        # Store original signals for rescaling use signals later
+        self.original_signals = self.signals.copy()
 
-        # Optional rescaling logic (unchanged)
-        if "RH_Dist_to_Ori_filt" in self.signals and "RH_Use_Signal" in self.signals:
-            dist_rh = self.signals["RH_Dist_to_Ori_filt"]
-            use_rh = self.signals["RH_Use_Signal"]
-            valid_rh = np.isfinite(dist_rh)
-            if np.any(valid_rh):
-                rh_min = np.nanmin(dist_rh)
-                rh_max = np.nanmax(dist_rh)
-                rh_scale = rh_max - rh_min
-                self.signals["RH_Use_Signal"] = use_rh * rh_scale + rh_min
 
-        if "LH_Dist_to_Ori_filt" in self.signals and "LH_Use_Signal" in self.signals:
-            dist_lh = self.signals["LH_Dist_to_Ori_filt"]
-            use_lh = self.signals["LH_Use_Signal"]
-            valid_lh = np.isfinite(dist_lh)
-            if np.any(valid_lh):
-                lh_min = np.nanmin(dist_lh)
-                lh_max = np.nanmax(dist_lh)
-                lh_scale = lh_max - lh_min
-                self.signals["LH_Use_Signal"] = use_lh * lh_scale + lh_min
+        # if "RH_Dist_to_Ori_filt" in self.signals and "RH_Use_Signal" in self.signals:
+        #     dist_rh = self.signals["RH_Dist_to_Ori_filt"]
+        #     use_rh = self.signals["RH_Use_Signal"]
+        #     valid_rh = np.isfinite(dist_rh)
+        #     if np.any(valid_rh):
+        #         rh_min = np.nanmin(dist_rh)
+        #         rh_max = np.nanmax(dist_rh)
+        #         rh_scale = rh_max - rh_min
+        #         self.signals["RH_Use_Signal"] = use_rh * rh_scale + rh_min
+
+        # if "LH_Dist_to_Ori_filt" in self.signals and "LH_Use_Signal" in self.signals:
+        #     dist_lh = self.signals["LH_Dist_to_Ori_filt"]
+        #     use_lh = self.signals["LH_Use_Signal"]
+        #     valid_lh = np.isfinite(dist_lh)
+        #     if np.any(valid_lh):
+        #         lh_min = np.nanmin(dist_lh)
+        #         lh_max = np.nanmax(dist_lh)
+        #         lh_scale = lh_max - lh_min
+        #         self.signals["LH_Use_Signal"] = use_lh * lh_scale + lh_min
+
+        # if "Camera1_RH_Dist_to_Ori_filt" in self.signals and "Camera1_RH_Use_Signal" in self.signals and "UseSignal_RH" in self.signals:
+        #     dist_rh = self.signals["Camera1_RH_Dist_to_Ori_filt"]
+        #     use_rh = self.signals["Camera1_RH_Use_Signal"]
+        #     valid_rh = np.isfinite(dist_rh)
+        #     if np.any(valid_rh):
+        #         rh_min = np.nanmin(dist_rh)
+        #         rh_max = np.nanmax(dist_rh)
+        #         rh_scale = rh_max - rh_min
+        #         self.signals["Camera1_RH_Use_Signal"] = use_rh * rh_scale + rh_min
+        #         self.signals["UseSignal_RH"] = use_rh * rh_scale + rh_min
+
+        # if "Camera1_RH_Dist_to_Ori_filt" in self.signals and "Camera1_RH_Use_Signal" in self.signals and "UseSignal_RH" in self.signals:
+        #     dist_rh = self.signals["Camera1_RH_Dist_to_Ori_filt"]
+        #     use_rh = self.signals["Camera1_RH_Use_Signal"]
+        #     valid_rh = np.isfinite(dist_rh)
+        #     if np.any(valid_rh):
+        #         rh_min = np.nanmin(dist_rh)
+        #         rh_max = np.nanmax(dist_rh)
+        #         rh_scale = rh_max - rh_min
+        #         self.signals["Camera1_RH_Use_Signal"] = use_rh * rh_scale + rh_min
+        #         self.signals["UseSignal_RH"] = use_rh * rh_scale + rh_min
+
+        # if "Camera1_LH_Dist_to_Ori_filt" in self.signals and "Camera1_LH_Use_Signal" in self.signals and "UseSignal_LH" in self.signals:
+        #     dist_lh = self.signals["Camera1_LH_Dist_to_Ori_filt"]
+        #     use_lh = self.signals["Camera1_LH_Use_Signal"]
+        #     valid_lh = np.isfinite(dist_lh)
+        #     if np.any(valid_lh):
+        #         lh_min = np.nanmin(dist_lh)
+        #         lh_max = np.nanmax(dist_lh)
+        #         lh_scale = lh_max - lh_min
+        #         self.signals["Camera1_LH_Use_Signal"] = use_lh * lh_scale + lh_min
+        #         self.signals["UseSignal_LH"] = use_lh * lh_scale + lh_min
+
+        # if "Camera2_RH_Dist_to_Ori_filt" in self.signals and "Camera2_RH_Use_Signal" in self.signals and "UseSignal_RH" in self.signals:
+        #     dist_rh = self.signals["Camera2_RH_Dist_to_Ori_filt"]
+        #     use_rh = self.signals["Camera2_RH_Use_Signal"]
+        #     valid_rh = np.isfinite(dist_rh)
+        #     if np.any(valid_rh):
+        #         rh_min = np.nanmin(dist_rh)
+        #         rh_max = np.nanmax(dist_rh)
+        #         rh_scale = rh_max - rh_min
+        #         self.signals["Camera2_RH_Use_Signal"] = use_rh * rh_scale + rh_min
+        #         self.signals["UseSignal_RH"] = use_rh * rh_scale + rh_min
+
+        # if "Camera2_LH_Dist_to_Ori_filt" in self.signals and "Camera2_LH_Use_Signal" in self.signals and "UseSignal_LH" in self.signals:
+        #     dist_lh = self.signals["Camera2_LH_Dist_to_Ori_filt"]
+        #     use_lh = self.signals["Camera2_LH_Use_Signal"]
+        #     valid_lh = np.isfinite(dist_lh)
+        #     if np.any(valid_lh):
+        #         lh_min = np.nanmin(dist_lh)
+        #         lh_max = np.nanmax(dist_lh)
+        #         lh_scale = lh_max - lh_min
+        #         self.signals["Camera2_LH_Use_Signal"] = use_lh * lh_scale + lh_min
+        #         self.signals["UseSignal_LH"] = use_lh * lh_scale + lh_min
 
         # Plot setup
         for curve in self.signal_curves.values():
@@ -462,11 +520,37 @@ class VideoIMUPlayer(QWidget):
         self.zoom_slider.setValue(1)
         self.update_zoom(1)
 
-
     def update_plot_from_checkboxes(self):
+        # Step 1: Determine selected signals
+        selected_signals = [
+            col for col, checkbox in self.signal_checkboxes.items()
+            if checkbox.isChecked() and col in self.signal_curves
+        ]
+
+        # Step 2: Compute global min and max across selected non-use signals
+        non_use_signals = [
+            col for col in selected_signals
+            if not any(x in col for x in ['UseSignal_RH', 'UseSignal_LH', 'RH_Use_Signal', 'LH_Use_Signal'])
+        ]
+
+        if non_use_signals:
+            all_values = np.concatenate([
+                self.signal_curves[col].yData for col in non_use_signals
+            ])
+            y_min, y_max = np.nanmin(all_values), np.nanmax(all_values)
+        else:
+            y_min, y_max = 0, 1  # Default range if only use signals are selected
+
+        # Step 3: Update visibility and rescale use signals
         for col, checkbox in self.signal_checkboxes.items():
             if col in self.signal_curves:
                 self.signal_curves[col].setVisible(checkbox.isChecked())
+                if checkbox.isChecked() and any(x in col for x in ['UseSignal_RH', 'UseSignal_LH', 'RH_Use_Signal', 'LH_Use_Signal']):
+                    raw_data = self.original_signals.get(col)
+                    if raw_data is not None:
+                        scaled_data = raw_data * (y_max - y_min) + y_min
+                        self.signal_curves[col].setData(self.signal_curves[col].xData, scaled_data)
+
 
     def update_imu_line(self, frame_idx):
         if self.time is None or frame_idx >= len(self.time):
@@ -548,6 +632,6 @@ class VideoIMUPlayer(QWidget):
 if __name__ == "__main__":
     import cv2
     app = QApplication(sys.argv)
-    viewer = VideoIMUPlayer()
+    viewer = VideoDataPlayer()
     viewer.show()
     sys.exit(app.exec_())
