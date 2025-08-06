@@ -1,58 +1,84 @@
-# Video IMU Viewer
+# RehabTrack_Workflow – Video–IMU Viewer
 
-A PyQt5-based desktop application for synchronized visualization of video frames and IMU signal data. Built for researchers and engineers analyzing movement data captured from rehabilitation or biomechanics sessions.
-
----
-
-## 🎯 Features
-
-- Load and play video recordings from segmented experimental trials
-- Overlay synchronized IMU signals (from CSV files) in an interactive plot
-- Zoom in/out on time-aligned signals
-- Navigate frame-by-frame or play continuously
-- Select and toggle multiple IMU channels dynamically
+This is an optional module of the [RehabTrack_Workflow](https://github.com/lrlcardoso/RehabTrack_Workflow): a modular pipeline for **tracking and analysing physiotherapy movements**, using video and IMU data.  
+This PyQt5-based desktop app enables synchronized, interactive visualisation of **video recordings and IMU signals** from rehabilitation sessions.
 
 ---
 
-## ⚙️ Requirements
+## 📌 Overview
 
-- Python 3.8+
-- PyQt5
-- PyQtGraph
-- OpenCV
-- NumPy
-- Pandas
-- PyAV
+This module provides:
+- **Patient/session/segment navigation** through dropdowns
+- **Synchronized playback** of video frames and IMU data
+- **Multi-signal display** from processed CSV files
+- **Zoomable time plots** and frame-level inspection
+- **Optional combined-camera mode** with signal overlay
 
-Install dependencies via pip:
+**Inputs:**
+- Segmented video files from the VideoDataProcessing stage
+- IMU and movement signal CSVs (e.g. from GrossMovDetector stage)
+
+**Outputs:**
+- Visualisation only (no files are saved by default)
+
+---
+
+## 📂 Repository Structure
+
+```
+VideoIMUViewer/
+├── gui.py               # PyQt5 GUI application
+├── requirements.txt     # Python dependencies
+└── README.md
+```
+
+---
+
+## 🛠 Installation
+
 ```bash
-python -m pip install -r requirements.txt
+git clone https://github.com/yourusername/VideoIMUViewer.git
+cd VideoIMUViewer
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
 ---
 
 ## 🚀 Usage
 
+Launch the application:
 ```bash
 python gui.py
 ```
 
-### Workflow
-1. Select **Patient**, **Session**, **Camera**, and **Segment** from the dropdowns
-2. Click **Load** to populate video frames and IMU signal plots
-3. Use playback buttons or the slider to navigate
-4. Select IMU signal channels to visualize
+### Workflow:
+1. Select **Patient**, **Session**, **Camera**, and **Segment**
+2. Click **Load** to view synchronized video and signal plots
+3. Use playback controls or the slider to navigate frames
+4. Toggle IMU and use-signal channels to overlay on the timeline
 
 ---
 
-## 🧪 Use Cases
-- Neurorehabilitation trials
-- Motion capture analysis
-- Biomechanical signal inspection
-- Synchronization verification of sensor data
+## 📖 Citation
+
+If you use this viewer in your research, please cite:
+```
+Cardoso, L. R. L. (2025). RehabTrack_Workflow. 
+GitHub. https://doi.org/XXXX/zenodo.XXXXX
+```
 
 ---
 
-## 📦 License
-MIT License  
-© 2025 Lucas Cardoso
+## 📝 License
+
+Code: [MIT License](LICENSE)  
+Documentation & figures: [CC BY 4.0](LICENSE-docs)
+
+---
+
+## 🤝 Acknowledgments
+
+- PyQt5, PyQtGraph  
+- AV, OpenCV, NumPy, Pandas
