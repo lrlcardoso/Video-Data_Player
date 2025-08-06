@@ -1,6 +1,6 @@
-# RehabTrack_Workflow – Video–IMU Viewer
+# RehabTrack Workflow – Video–IMU Viewer
 
-This is an optional module of the [RehabTrack_Workflow](https://github.com/lrlcardoso/RehabTrack_Workflow): a modular pipeline for **tracking and analysing physiotherapy movements**, using video and IMU data.  
+This is an optional module of the [RehabTrack Workflow](https://github.com/lrlcardoso/RehabTrack_Workflow): a modular pipeline for **tracking and analysing physiotherapy movements**, using video and IMU data.  
 This PyQt5-based desktop app enables synchronized, interactive visualisation of **video recordings and IMU signals** from rehabilitation sessions.
 
 ---
@@ -81,4 +81,4 @@ Documentation & figures: [CC BY 4.0](LICENSE-docs)
 ## 🤝 Acknowledgments
 
 - PyQt5, PyQtGraph  
-- AV, OpenCV, NumPy, Pandas
+- OpenCV
